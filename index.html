@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    #board {
+      align-items: center;
+      border: 1px solid #000;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      margin: 0 auto;
+      width: fit-content;
+    }
+
+    .line {
+      background-color: #000;
+      display: flex;
+      width: fit-content;
+    }
+
+    .square {
+      align-items: center;
+      background-color: #fff;
+      display: flex;
+      height: 100px;
+      justify-content: center;
+      width: 100px;
+    }
+
+    #player {
+      background: #ffff00;
+      border-radius: 50px;
+      height: 90%;
+      width: 90%;
+    }
+
+    #point {
+      background: #ddd;
+      border-radius: 50px;
+      height: 50%;
+      width: 50%;
+    }
+
+    #score {
+      display: flex;
+      justify-content: center;
+      gap: 1rem;
+      padding: 1rem;
+    }
+
+    .score-item {
+      align-items: center;
+      border: 1px solid #999;
+      display: flex;
+      flex-direction: column;
+      justify-content: center;
+      min-height: 1rem;
+      min-width: 1rem;
+      padding: 1rem;
+      width: fit-content;
+    }
+
+    .start {
+      background: red;
+      border-radius: 50%;
+      height: 1rem;
+      width: 1rem;
+    }
+
+    .start.started {
+      background: green;
+    }
+
+    #history {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 1rem;
+    }
+
+    #history th,
+    #history td {
+      border: 1px solid #888;
+      padding: .5rem;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="settings"></div>
+  <div id="score"></div>
+  <div id="board"></div>
+  <div id="history"></div>
+  <script>
+    const boardLength = {
+      lines: 4,
+      columns: 6,
+    };
+
+    const playerCoordinates = {
+      y: 1,
+      x: 1,
+    };
+
+    const pointCoordinates = {
+      y: Math.round(Math.random() * (boardLength.lines - 2) + 2),
+      x: Math.round(Math.random() * (boardLength.columns - 2) + 2),
+    };
+
+    setInterval(() => {
+      console.clear();
+      console.log(playerCoordinates);
+      console.log(pointCoordinates)
+    }, 1000);
+
+    const status = {
+      start: false,
+      time: new Date('0'),
+      moves: 0,
+      score: 0,
+      limit: 100,
+    }
+
+    function updateStatus(owner) {
+      if (owner == 'catch point' && status.score >= status.limit) {
+
+        const winners = JSON.parse(localStorage.getItem('winners')) || [];
+        const name = prompt(`Parabéns, você ganhou com ${("00" + status.time.getHours()).slice(-2)}:${("00" + status.time.getMinutes()).slice(-2)}:${("00" + status.time.getSeconds()).slice(-2)}. Como é seu nome?`);
+
+        winners.push({
+          boardLength,
+          status,
+          player: {
+            name,
+            device: window.clientInformation.userAgent,
+          },
+          created: new Date(),
+        })
+
+        localStorage.setItem('winners', JSON.stringify(winners));
+
+        status.start = false;
+        window.location.reload();
+      }
+      document.querySelector('#score').innerHTML = `
+        <div class="score-item">
+          <h2 class="score-title">Start</h2>
+          <div class="start ${(status.start) ? 'started' : ''}"></div>
+        </div>
+        <div class="score-item">
+          <h2 class="score-title">Time</h2>
+          <div class="time">${("00" + status.time.getHours()).slice(-2)}:${("00" + status.time.getMinutes()).slice(-2)}:${("00" + status.time.getSeconds()).slice(-2)}</div>
+        </div>
+        <div class="score-item">
+          <h2 class="score-title">Moves</h2>
+          <div>${status.moves}</div>
+        </div>
+        <div class="score-item">
+          <h2 class="score-title">Score</h2>
+          <div>${status.score}/${status.limit}</div>
+        </div>
+      `;
+    }
+
+
+    function startGame() {
+      if (!status.start) {
+        status.start = true;
+        updateStatus('start');
+        setInterval(() => {
+          status.time.setMilliseconds(status.time.getMilliseconds() + 1000);
+          if (status.score > 0) status.score -= 1;
+          updateStatus('time');
+        }, 1000);
+      }
+    }
+
+    for (let l = 0; l < boardLength.lines; l++) {
+      const lineDom = document.createElement('div');
+      lineDom.classList.add('line');
+
+      for (let c = 0; c < boardLength.columns; c++) {
+        const squareDom = document.createElement('div');
+        squareDom.classList.add('square');
+
+        lineDom.append(squareDom);
+      }
+
+      document.querySelector('#board').append(lineDom);
+    }
+
+    function updatePlayer(x, y) {
+      const target = document.querySelector(`.line:nth-child(${y}) .square:nth-child(${x})`);
+      const playerDom = document.querySelector('#player');
+
+      if (playerDom) playerDom.remove();
+
+      target.innerHTML = `<div id="player"></div>`
+    };
+
+    function updatePoint(x, y) {
+      const target = document.querySelector(`.line:nth-child(${y}) .square:nth-child(${x})`);
+      const pointDom = document.querySelector('#point');
+
+      if (pointDom) pointDom.remove();
+
+      target.innerHTML = `<div id="point"></div>`
+    };
+
+    function updateHistory() {
+      const winners = JSON.parse(localStorage.getItem('winners')) || [];
+
+      document.querySelector('#history').innerHTML = `
+        <table>
+          <thead>
+            <tr>
+              <th>Board</th>
+              <th>Player</th>
+              <th>Difficulty</th>
+              <th>Move</th>
+              <th>Score</th>
+              <th>time</th>
+              <th>Create</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${winners.reverse().map(w => {
+
+        let time = '-';
+        if (w.status.time) {
+          const jsDate = new Date(w.status.time);
+          const convertedDate = {
+            hours: ("00" + jsDate.getHours()).slice(-2),
+            minutes: ("00" + jsDate.getMinutes()).slice(-2),
+            seconds: ("00" + jsDate.getSeconds()).slice(-2),
+          }
+
+          time = `${convertedDate.hours}:${convertedDate.minutes}:${convertedDate.seconds}`
+        };
+
+        let createdDate = '-';
+        if (w.created) {
+          const jsDate = new Date(w.created);
+          const convertedDate = {
+            day: ("00" + jsDate.getDate()).slice(-2),
+            month: ("00" + (jsDate.getMonth() + 1)).slice(-2),
+            year: ("0000" + jsDate.getFullYear()).slice(-4),
+          }
+
+          createdDate = `${convertedDate.day}/${convertedDate.month}/${convertedDate.year}`
+        };
+
+        return `
+                  <tr>
+                    <td>${w.boardLength.columns}x${w.boardLength.lines}</td>
+                    <td>${w.player.name}</td>
+                    <td>${w.status.limit || '-'}</td>
+                    <td>${w.status.moves || '-'}</td>
+                    <td>${w.status.score || '-'}</td>
+                    <td>${time}</td>
+                    <td>${createdDate}</td>
+                  </tr>
+                `
+      }).join('')
+        }
+          </tbody>
+        </table>
+      `;
+    }
+
+    function updateSettings(){
+      //
+    }
+
+    updatePlayer(playerCoordinates.x, playerCoordinates.y);
+    updatePointer();
+    updateStatus('IIFE');
+    updateHistory();
+    updateSettings();
+
+    function updatePosition(coordinate) {
+      const playerState = {
+        y: playerCoordinates.y,
+        x: playerCoordinates.x,
+      };
+      const handle = {
+        left: () => {
+          if (playerCoordinates.x > 1) playerCoordinates.x--;
+        },
+        up: () => {
+          if (playerCoordinates.y > 1) playerCoordinates.y--;
+        },
+        right: () => {
+          if (playerCoordinates.x < boardLength.columns) playerCoordinates.x++;
+        },
+        down: () => {
+          if (playerCoordinates.y < boardLength.lines) playerCoordinates.y++;
+        },
+      };
+
+
+      handle[coordinate]();
+      if (!(playerState.x == playerCoordinates.x && playerState.y == playerCoordinates.y)) {
+        status.moves += 1;
+        if (status.score > 0) status.score -= 1;
+        updateStatus('move');
+        startGame();
+      }
+      updatePlayer(playerCoordinates.x, playerCoordinates.y);
+      checkPoint()
+    }
+
+    function checkPoint() {
+      if (playerCoordinates.x == pointCoordinates.x && playerCoordinates.y == pointCoordinates.y) {
+        status.score += 5;
+        updatePointer();
+        updateStatus('catch point');
+      }
+    }
+
+    document.addEventListener('keydown', (event) => {
+      const key = {
+        name: event.code,
+        code: event.keyCode,
+        value: event.key,
+      }
+
+      if (key.code == 37 || key.code == 65) updatePosition('left');
+      if (key.code == 38 || key.code == 87) updatePosition('up');
+      if (key.code == 39 || key.code == 68) updatePosition('right');
+      if (key.code == 40 || key.code == 83) updatePosition('down');
+    })
+
+    function updatePointer() {
+      while (pointCoordinates.x == playerCoordinates.x && pointCoordinates.y == playerCoordinates.y) {
+        pointCoordinates.y = Math.round(Math.random() * (boardLength.lines - 1) + 1);
+        pointCoordinates.x = Math.round(Math.random() * (boardLength.columns - 1) + 1);
+      }
+
+      updatePoint(pointCoordinates.x, pointCoordinates.y);
+    }
+  </script>
+</body>
+
+</html>
