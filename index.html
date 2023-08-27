@@ -97,9 +97,68 @@
   <div id="board"></div>
   <div id="history"></div>
   <script>
+    const configParams = {
+      height: {
+        min: 2,
+        default: 4,
+        max: 7,
+      },
+      weight: {
+        min: 2,
+        default: 6,
+        max: 10,
+      },
+      difficulty: {
+        min: 10,
+        default: 100,
+        max: 1000,
+      }
+    }
+    function getParams(paramName = '') {
+      if (!paramName || !paramName.length) throw new Error('Missing required parameter');
+      
+      const queryStr = window.location.search.substring(1, window.location.search.length);
+      
+      const queryArr = queryStr.split('&').filter(q => q.length).map(q => q.split('='));
+
+      const queryObj = Object.fromEntries(queryArr);
+      
+      const hasSearchedValue = !!queryObj[paramName];
+      const isSearchable = !!configParams[paramName];
+
+      let correctValue = Number(queryObj[paramName] && !isNaN(queryObj[paramName]) ? queryObj[paramName] : 1);
+      let newQueryStr = '';
+
+      if(!isSearchable) {
+        newQueryStr = Object.entries({
+          ...queryObj,
+          [paramName]: correctValue,
+        }).map(q => `${q[0]}=${q[1]}`).join('&');
+      }
+      if(isSearchable && !hasSearchedValue) {
+        correctValue = configParams[paramName].default;
+        newQueryStr = Object.entries({
+          ...queryObj,
+          [paramName]: correctValue,
+        }).map(q => `${q[0]}=${q[1]}`).join('&');
+      }
+      if(isSearchable && hasSearchedValue) {
+        const currentConfig = configParams[paramName];
+        if (correctValue < currentConfig.min) correctValue = currentConfig.min;
+        if (correctValue > currentConfig.max) correctValue = currentConfig.max;
+        newQueryStr = Object.entries({
+          ...queryObj,
+          [paramName]: correctValue,
+        }).map(q => `${q[0]}=${q[1]}`).join('&');
+      }
+
+      if (queryStr != newQueryStr) window.location.search = newQueryStr;
+      return correctValue;
+    }
+
     const boardLength = {
-      lines: 4,
-      columns: 6,
+      lines: getParams('height'),
+      columns: getParams('weight'),
     };
 
     const playerCoordinates = {
@@ -108,22 +167,16 @@
     };
 
     const pointCoordinates = {
-      y: Math.round(Math.random() * (boardLength.lines - 2) + 2),
-      x: Math.round(Math.random() * (boardLength.columns - 2) + 2),
+      y: Math.round(Math.random() * (boardLength.lines - 1) + 1),
+      x: Math.round(Math.random() * (boardLength.columns - 1) + 1),
     };
-
-    setInterval(() => {
-      console.clear();
-      console.log(playerCoordinates);
-      console.log(pointCoordinates)
-    }, 1000);
 
     const status = {
       start: false,
       time: new Date('0'),
       moves: 0,
       score: 0,
-      limit: 100,
+      limit: getParams('difficulty'),
     }
 
     function updateStatus(owner) {
@@ -140,7 +193,17 @@
             device: window.clientInformation.userAgent,
           },
           created: new Date(),
-        })
+        });
+
+        winners.sort((a, b) => a.status.score - b.status.score);
+        winners.sort((a, b) => b.status.moves - a.status.moves);
+        winners.sort((a, b) => a.status.limit - b.status.limit);
+        winners.sort((a, b) => {
+          const totalA = a.boardLength.lines + a.boardLength.columns;
+          const totalB = b.boardLength.lines + b.boardLength.columns;
+
+          return totalA - totalB;
+        });
 
         localStorage.setItem('winners', JSON.stringify(winners));
 
